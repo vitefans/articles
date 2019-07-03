@@ -1,0 +1,38 @@
+pragma soliditypp ^0.4.2;
+
+contract Guess {
+    tokenId _vToken = "tti_5649544520544f4b454e6e40"; // 参与代币
+    uint256 winCount;
+
+    event _roll(address indexed addr, uint guessNo, uint256 amount, bytes32 requestHash);
+    event _win(address indexed addr, uint luckyNo, uint256 winAmount);
+
+    onMessage roll(uint guessNo) payable {
+        require(msg.amount > 0);
+        require(msg.tokenid == _vToken);
+
+        emit _roll(msg.sender, guessNo, msg.amount, fromhash());
+
+        uint64 random = random64();
+        uint No = 1 + random % 6;
+
+        if (No == guessNo) {
+            uint256 winAmount = msg.amount * 2;
+
+            uint256 rewardPool = balance(_vToken);
+
+            if (rewardPool < winAmount) {
+                winAmount = rewardPool;
+            }
+
+            msg.sender.transfer(_vToken, winAmount);
+            emit _win(msg.sender, No, winAmount);
+
+            winCount += 1;
+        }
+    }
+
+    getter getState() returns (uint256) {
+        return (winCount);
+    }
+}
