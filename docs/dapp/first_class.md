@@ -149,17 +149,34 @@ const CONTRACT = {
 }
 
 async function createContract (binary, abi, params) {
+    // 创建合约的参数参考：https://vite.wiki/zh/api/rpc/contract.html#contract-getcreatecontractdata
+
+    // vitejs@2.1.2 版本
     // times 是配额翻倍数
     // confirmTimes 是 sendBlock 被确认的次数
-    // times 和 confirmTimes 参考 https://vite.wiki/zh/api/rpc/contract.html#contract-getcreatecontractdata 列出的 quotaRatio 和 confirmTime 参数
-    const createTx = await myAccount.createContract({
-        amount: '0',
-        hexCode: binary,
-        times: 10,  // 合约收取配额的倍数，默认为 10
+    const optionsV212 = {
+        times: 10,
         confirmTimes: 12,
+        hexCode: binary,
         abi: abi,
         params: params,
-    });
+    }
+
+    // vitejs@2.2.2 版本
+    // vitejs 新版本参数上有变更：
+    // times -> quotaRatio
+    // confirmTimes -> confirmTime
+    // 新增 seedCount 参数，需要小于或等于 confirmTime
+    const optionsV222 = {
+        quotaRatio: 10,
+        confirmTime: 12,
+        seedCount: 12,
+        hexCode: binary,
+        abi: abi,
+        params: params,
+    }
+
+    const createTx = await myAccount.createContract(optionsV222);
 
     const createBlock = await vclient.request('ledger_getBlockByHeight', createTx.accountAddress, createTx.height);
 
@@ -593,11 +610,11 @@ getContractLog([
 
 目前 gvite 客户端具备 http-rpc 功能，也就是说你运行的 vite 节点就可以作为 API 节点来使用，所以一个 dapp 大概的系统调用流程如下：
 
-![架构](./1.png)
+![架构](https://raw.githubusercontent.com/vitefans/articles/master/docs/dapp/1.png)
 
 不过由于合约执行、存储需要的配额很高，所以一般合约开发者只会存核心数据。开发者可以搭建自己的中间 API 对数据进行处理，方便前端的查询。架构就会变成这样：
 
-![架构](./2.png)
+![架构](https://raw.githubusercontent.com/vitefans/articles/master/docs/dapp/2.png)
 
 开启 gvite 的 API 功能需要在设置文件 `node_config.json` 配置相应字段:
 
@@ -673,3 +690,9 @@ utils._Buffer.from(hex_data, 'hex').toString('base64');
 ```
 
 本文涉及到到的代码较多，建议大家尝试运行，如果有问题，请在帖子下留言沟通，谢谢。
+
+补充：
+文中所有的 vitejs 版本号是 2.1.2。  
+发文不久，在调试另一个 dapp 时，合约总是创建失败。各种调试最后发现安装的是 vitejs@2.2.2 版本，再定睛一看，原来创建合约的参数有变更，但是文档没有提到，故而踩了一坑。
+
+所以更新了文中创建合约的代码。。。
